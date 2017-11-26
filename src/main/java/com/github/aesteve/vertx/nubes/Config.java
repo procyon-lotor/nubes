@@ -29,363 +29,374 @@ import io.vertx.ext.jdbc.JDBCClient;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
-import io.vertx.ext.web.templ.*;
+import io.vertx.ext.web.templ.HandlebarsTemplateEngine;
+import io.vertx.ext.web.templ.JadeTemplateEngine;
+import io.vertx.ext.web.templ.MVELTemplateEngine;
+import io.vertx.ext.web.templ.TemplateEngine;
+import io.vertx.ext.web.templ.ThymeleafTemplateEngine;
 
 import java.lang.annotation.Annotation;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class Config {
 
-  private static final Logger LOG = LoggerFactory.getLogger(Config.class);
-  private final Map<Locale, ResourceBundle> bundlesByLocale;
-  private final List<Handler<RoutingContext>> globalHandlers;
-  private final Map<String, TemplateEngine> templateEngines;
-  private final SockJSHandlerOptions sockJSOptions;
-  private JsonObject json;
-  private List<String> controllerPackages;
-  private List<String> fixturePackages;
-  private String verticlePackage;
-  private String domainPackage;
-  private RateLimit rateLimit;
-  private String webroot;
-  private String assetsPath;
-  private String tplDir;
-  private boolean displayErrors;
-  private Vertx vertx;
-  private AuthProvider authProvider;
-  private String i18nDir;
-  private AnnotationProcessorRegistry apRegistry;
-  private Map<Class<? extends Annotation>, Set<Handler<RoutingContext>>> annotationHandlers;
-  private Map<Class<?>, Processor> typeProcessors;
-  private TypedParamInjectorRegistry typeInjectors;
-  private AnnotatedParamInjectorRegistry annotInjectors;
-  private ServiceRegistry serviceRegistry;
-  private Map<Class<?>, Handler<RoutingContext>> paramHandlers;
-  private Map<String, Handler<RoutingContext>> aopHandlerRegistry;
-  private Map<String, PayloadMarshaller> marshallers;
+    private static final Logger LOG = LoggerFactory.getLogger(Config.class);
+    private final Map<Locale, ResourceBundle> bundlesByLocale;
+    private final List<Handler<RoutingContext>> globalHandlers;
+    private final Map<String, TemplateEngine> templateEngines;
+    private final SockJSHandlerOptions sockJSOptions;
+    private JsonObject json;
+    private List<String> controllerPackages;
+    private List<String> fixturePackages;
+    private String verticlePackage;
+    private String domainPackage;
+    private RateLimit rateLimit;
+    private String webroot;
+    private String assetsPath;
+    private String tplDir;
+    private boolean displayErrors;
+    private Vertx vertx;
+    private AuthProvider authProvider;
+    private String i18nDir;
+    private AnnotationProcessorRegistry apRegistry;
+    private Map<Class<? extends Annotation>, Set<Handler<RoutingContext>>> annotationHandlers;
+    private Map<Class<?>, Processor> typeProcessors;
+    private TypedParamInjectorRegistry typeInjectors;
+    private AnnotatedParamInjectorRegistry annotInjectors;
+    private ServiceRegistry serviceRegistry;
+    private Map<Class<?>, Handler<RoutingContext>> paramHandlers;
+    private Map<String, Handler<RoutingContext>> aopHandlerRegistry;
+    private Map<String, PayloadMarshaller> marshallers;
 
-  private Config() {
-    bundlesByLocale = new HashMap<>();
-    globalHandlers = new ArrayList<>();
-    templateEngines = new HashMap<>();
-    sockJSOptions = new SockJSHandlerOptions();
-    marshallers = new HashMap<>();
-    annotationHandlers = new HashMap<>();
-    paramHandlers = new HashMap<>();
-    typeProcessors = new HashMap<>();
-    apRegistry = new AnnotationProcessorRegistry();
-    typeInjectors = new TypedParamInjectorRegistry(this);
-    aopHandlerRegistry = new HashMap<>();
-  }
-
-  /**
-   * TODO : we should be consistent on single/multiple values
-   * (controllers is an array, fixtures is a list, domain is a single value, verticle is a single value) : this is wrong
-   *
-   * @param json JsonObject describing the config
-   * @return config a type safe config object
-   */
-  public static Config fromJsonObject(JsonObject json, Vertx vertx) {
-    Config instance = new Config();
-    instance.json = json;
-    instance.vertx = vertx;
-
-    instance.readPackages();
-    // Register services included in config
-    instance.createServices();
-    // Register templateEngines for extensions added in config
-    instance.createTemplateEngines();
-
-    instance.createRateLimit();
-
-    instance.createAuthHandlers();
-
-    instance.webroot = json.getString("webroot", "web/assets");
-    instance.assetsPath = json.getString("static-path", "/assets");
-    instance.tplDir = json.getString("views-dir", "web/views");
-    instance.displayErrors = json.getBoolean("display-errors", Boolean.FALSE);
-    // TODO : read sockJSOptions from config
-
-    instance.globalHandlers.add(BodyHandler.create());
-    return instance;
-  }
-
-  private void createAuthHandlers() {
-    String auth = json.getString("auth-type");
-    JsonObject authProperties = json.getJsonObject("auth-properties");
-
-    // TODO : discuss it. I'm really not convinced about all the boilerplate needed in config (dbName only for JDBC, etc.)
-    if (authProperties != null) {
-      // For now, only JWT,Shiro and JDBC supported (same as for Vert.x web)
-      switch (auth) {
-        case "JWT":// For now only allow properties realm
-          this.authProvider = JWTAuth.create(vertx, authProperties);
-          break;
-        case "Shiro":
-          ShiroAuth.create(vertx, new ShiroAuthOptions(authProperties));
-          break;
-        case "JDBC":
-          String dbName = json.getString("db-name");
-          Objects.requireNonNull(dbName);
-          JDBCClient client = JDBCClient.createShared(vertx, authProperties, dbName);
-          this.authProvider = JDBCAuth.create(client);
-          break;
-        default:
-          LOG.warn("Unknown type of auth : " + auth + " . Ignoring.");
-      }
-    } else if (auth != null) {
-      LOG.warn("You have defined " + auth + " as auth type, but didn't provide any configuration, can't create authProvider");
+    private Config() {
+        bundlesByLocale = new HashMap<>();
+        globalHandlers = new ArrayList<>();
+        templateEngines = new HashMap<>();
+        sockJSOptions = new SockJSHandlerOptions();
+        marshallers = new HashMap<>();
+        annotationHandlers = new HashMap<>();
+        paramHandlers = new HashMap<>();
+        typeProcessors = new HashMap<>();
+        apRegistry = new AnnotationProcessorRegistry();
+        typeInjectors = new TypedParamInjectorRegistry(this);
+        aopHandlerRegistry = new HashMap<>();
     }
 
-  }
+    /**
+     * TODO : we should be consistent on single/multiple values
+     * (controllers is an array, fixtures is a list, domain is a single value, verticle is a single value) : this is wrong
+     *
+     * @param json JsonObject describing the config
+     * @return config a type safe config object
+     */
+    public static Config fromJsonObject(JsonObject json, Vertx vertx) {
+        Config instance = new Config();
+        instance.json = json;
+        instance.vertx = vertx;
 
-  private void createRateLimit() {
-    JsonObject rateLimitJson = json.getJsonObject("throttling");
-    if (rateLimitJson != null) {
-      int count = rateLimitJson.getInteger("count");
-      int value = rateLimitJson.getInteger("time-frame");
-      TimeUnit timeUnit = TimeUnit.valueOf(rateLimitJson.getString("time-unit"));
-      this.rateLimit = new RateLimit(count, value, timeUnit);
-    }
-  }
+        instance.readPackages();
+        // Register services included in config
+        instance.createServices();
+        // Register templateEngines for extensions added in config
+        instance.createTemplateEngines();
 
-  private void createTemplateEngines() {
-    JsonArray templates = json.getJsonArray("templates", new JsonArray());
-    if (templates.contains("hbs")) {
-      this.templateEngines.put("hbs", HandlebarsTemplateEngine.create());
-    }
-    if (templates.contains("jade")) {
-      this.templateEngines.put("jade", JadeTemplateEngine.create());
-    }
-    if (templates.contains("templ")) {
-      this.templateEngines.put("templ", MVELTemplateEngine.create());
-    }
-    if (templates.contains("thymeleaf")) {
-      this.templateEngines.put("html", ThymeleafTemplateEngine.create());
-    }
-  }
+        instance.createRateLimit();
 
-  private void createServices() {
-    JsonObject services = json.getJsonObject("services", new JsonObject());
-    this.serviceRegistry = new ServiceRegistry(vertx, this);
-    services.forEach(entry -> {
-      String name = entry.getKey();
-      String className = (String) entry.getValue();
-      try {
-        Class<?> clazz = Class.forName(className);
-        this.serviceRegistry.registerService(name, clazz.newInstance());
-      } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
-        throw new VertxException(e);
-      }
-    });
-  }
+        instance.createAuthHandlers();
 
-  @SuppressWarnings("unchecked")
-  private void readPackages() {
-    this.i18nDir = json.getString("i18nDir", "web/i18n/");
-    if (!this.i18nDir.endsWith("/")) {
-      this.i18nDir = this.i18nDir + "/";
-    }
-    String srcPackage = json.getString("src-package");
-    JsonArray controllers = json.getJsonArray("controller-packages");
-    if (controllers == null) {
-      controllers = new JsonArray();
-      if (srcPackage != null) {
-        controllers.add(srcPackage + ".controllers");
-      }
-    }
-    this.controllerPackages = controllers.getList();
+        instance.webroot = json.getString("webroot", "web/assets");
+        instance.assetsPath = json.getString("static-path", "/assets");
+        instance.tplDir = json.getString("views-dir", "web/views");
+        instance.displayErrors = json.getBoolean("display-errors", Boolean.FALSE);
+        // TODO : read sockJSOptions from config
 
-    this.verticlePackage = json.getString("verticle-package");
-    if (this.verticlePackage == null && srcPackage != null) {
-      this.verticlePackage = srcPackage + ".verticles";
+        instance.globalHandlers.add(BodyHandler.create());
+        return instance;
     }
 
-    this.domainPackage = json.getString("domain-package");
-    if (this.domainPackage == null && srcPackage != null) {
-      this.domainPackage = srcPackage + ".domains";
+    private void createAuthHandlers() {
+        String auth = json.getString("auth-type");
+        JsonObject authProperties = json.getJsonObject("auth-properties");
+
+        // TODO : discuss it. I'm really not convinced about all the boilerplate needed in config (dbName only for JDBC, etc.)
+        if (authProperties != null) {
+            // For now, only JWT,Shiro and JDBC supported (same as for Vert.x web)
+            switch (auth) {
+                case "JWT":// For now only allow properties realm
+                    this.authProvider = JWTAuth.create(vertx, authProperties);
+                    break;
+                case "Shiro":
+                    ShiroAuth.create(vertx, new ShiroAuthOptions(authProperties));
+                    break;
+                case "JDBC":
+                    String dbName = json.getString("db-name");
+                    Objects.requireNonNull(dbName);
+                    JDBCClient client = JDBCClient.createShared(vertx, authProperties, dbName);
+                    this.authProvider = JDBCAuth.create(client);
+                    break;
+                default:
+                    LOG.warn("Unknown type of auth : " + auth + " . Ignoring.");
+            }
+        } else if (auth != null) {
+            LOG.warn("You have defined " + auth + " as auth type, but didn't provide any configuration, can't create authProvider");
+        }
+
     }
-    JsonArray fixtures = json.getJsonArray("fixture-packages");
-    if (fixtures == null) {
-      fixtures = new JsonArray();
-      if (srcPackage != null) {
-        fixtures.add(srcPackage + ".fixtures");
-      }
+
+    private void createRateLimit() {
+        JsonObject rateLimitJson = json.getJsonObject("throttling");
+        if (rateLimitJson != null) {
+            int count = rateLimitJson.getInteger("count");
+            int value = rateLimitJson.getInteger("time-frame");
+            TimeUnit timeUnit = TimeUnit.valueOf(rateLimitJson.getString("time-unit"));
+            this.rateLimit = new RateLimit(count, value, timeUnit);
+        }
     }
-    this.fixturePackages = fixtures.getList();
-  }
 
-  public ResourceBundle getResourceBundle(Locale loc) {
-    return bundlesByLocale.get(loc);
-  }
+    private void createTemplateEngines() {
+        JsonArray templates = json.getJsonArray("templates", new JsonArray());
+        if (templates.contains("hbs")) {
+            this.templateEngines.put("hbs", HandlebarsTemplateEngine.create());
+        }
+        if (templates.contains("jade")) {
+            this.templateEngines.put("jade", JadeTemplateEngine.create());
+        }
+        if (templates.contains("templ")) {
+            this.templateEngines.put("templ", MVELTemplateEngine.create());
+        }
+        if (templates.contains("thymeleaf")) {
+            this.templateEngines.put("html", ThymeleafTemplateEngine.create());
+        }
+    }
 
-  public JsonObject json() {
-    return json;
-  }
+    private void createServices() {
+        JsonObject services = json.getJsonObject("services", new JsonObject());
+        this.serviceRegistry = new ServiceRegistry(vertx, this);
+        services.forEach(entry -> {
+            String name = entry.getKey();
+            String className = (String) entry.getValue();
+            try {
+                Class<?> clazz = Class.forName(className);
+                this.serviceRegistry.registerService(name, clazz.newInstance());
+            } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+                throw new VertxException(e);
+            }
+        });
+    }
 
-  public List<String> getFixturePackages() {
-    return fixturePackages;
-  }
+    @SuppressWarnings("unchecked")
+    private void readPackages() {
+        this.i18nDir = json.getString("i18nDir", "web/i18n/");
+        if (!this.i18nDir.endsWith("/")) {
+            this.i18nDir = this.i18nDir + "/";
+        }
+        String srcPackage = json.getString("src-package");
+        JsonArray controllers = json.getJsonArray("controller-packages");
+        if (controllers == null) {
+            controllers = new JsonArray();
+            if (srcPackage != null) {
+                controllers.add(srcPackage + ".controllers");
+            }
+        }
+        this.controllerPackages = controllers.getList();
 
-  public TypedParamInjectorRegistry getTypeInjectors() {
-    return typeInjectors;
-  }
+        this.verticlePackage = json.getString("verticle-package");
+        if (this.verticlePackage == null && srcPackage != null) {
+            this.verticlePackage = srcPackage + ".verticles";
+        }
 
-  public AnnotatedParamInjectorRegistry getAnnotatedInjectors() {
-    return annotInjectors;
-  }
+        this.domainPackage = json.getString("domain-package");
+        if (this.domainPackage == null && srcPackage != null) {
+            this.domainPackage = srcPackage + ".domains";
+        }
+        JsonArray fixtures = json.getJsonArray("fixture-packages");
+        if (fixtures == null) {
+            fixtures = new JsonArray();
+            if (srcPackage != null) {
+                fixtures.add(srcPackage + ".fixtures");
+            }
+        }
+        this.fixturePackages = fixtures.getList();
+    }
 
-  public boolean isDisplayErrors() {
-    return displayErrors;
-  }
+    public ResourceBundle getResourceBundle(Locale loc) {
+        return bundlesByLocale.get(loc);
+    }
 
-  public Map<String, TemplateEngine> getTemplateEngines() {
-    return templateEngines;
-  }
+    public JsonObject json() {
+        return json;
+    }
 
-  public String getTplDir() {
-    return tplDir;
-  }
+    public List<String> getFixturePackages() {
+        return fixturePackages;
+    }
 
-  public RateLimit getRateLimit() {
-    return rateLimit;
-  }
+    public TypedParamInjectorRegistry getTypeInjectors() {
+        return typeInjectors;
+    }
 
-  void createAnnotInjectors(ParameterAdapterRegistry registry) {
-    annotInjectors = new AnnotatedParamInjectorRegistry(marshallers, registry);
-  }
+    public AnnotatedParamInjectorRegistry getAnnotatedInjectors() {
+        return annotInjectors;
+    }
 
-  public String getDomainPackage() {
-    return domainPackage;
-  }
+    public boolean isDisplayErrors() {
+        return displayErrors;
+    }
 
-  public ServiceRegistry getServiceRegistry() {
-    return serviceRegistry;
-  }
+    public Map<String, TemplateEngine> getTemplateEngines() {
+        return templateEngines;
+    }
 
-  void registerTemplateEngine(String extension, TemplateEngine engine) {
-    templateEngines.put(extension, engine);
-  }
+    public String getTplDir() {
+        return tplDir;
+    }
 
-  void registerInterceptor(String name, Handler<RoutingContext> handler) {
-    aopHandlerRegistry.put(name, handler);
-  }
+    public RateLimit getRateLimit() {
+        return rateLimit;
+    }
 
-  void registerService(String name, Object service) {
-    serviceRegistry.registerService(name, service);
-  }
+    void createAnnotInjectors(ParameterAdapterRegistry registry) {
+        annotInjectors = new AnnotatedParamInjectorRegistry(marshallers, registry);
+    }
 
-  Object getService(String name) {
-    return serviceRegistry.get(name);
-  }
+    public String getDomainPackage() {
+        return domainPackage;
+    }
 
-  void registerParamHandler(Class<?> parameterClass, Handler<RoutingContext> handler) {
-    paramHandlers.put(parameterClass, handler);
-  }
+    public ServiceRegistry getServiceRegistry() {
+        return serviceRegistry;
+    }
 
-  public Set<Handler<RoutingContext>> getAnnotationHandler(Class<? extends Annotation> annotation) {
-    return annotationHandlers.get(annotation);
-  }
+    void registerTemplateEngine(String extension, TemplateEngine engine) {
+        templateEngines.put(extension, engine);
+    }
 
-  void registerAnnotationHandler(Class<? extends Annotation> annotation, Set<Handler<RoutingContext>> handlers) {
-    annotationHandlers.put(annotation, handlers);
-  }
+    void registerInterceptor(String name, Handler<RoutingContext> handler) {
+        aopHandlerRegistry.put(name, handler);
+    }
 
-  void registerTypeProcessor(Class<?> type, Processor processor) {
-    typeProcessors.put(type, processor);
-  }
+    void registerService(String name, Object service) {
+        serviceRegistry.registerService(name, service);
+    }
 
-  <T extends Annotation> void registerAnnotationProcessor(Class<T> annotation, AnnotationProcessorFactory<T> processor) {
-    apRegistry.registerProcessor(annotation, processor);
-  }
+    Object getService(String name) {
+        return serviceRegistry.get(name);
+    }
 
-  <T extends Annotation> void registerAnnotationProcessor(Class<T> annotation, AnnotationProcessor<T> processor) {
-    apRegistry.registerProcessor(annotation, processor);
-  }
+    void registerParamHandler(Class<?> parameterClass, Handler<RoutingContext> handler) {
+        paramHandlers.put(parameterClass, handler);
+    }
 
-  <T> void registerInjector(Class<? extends T> clazz, ParamInjector<T> injector) {
-    typeInjectors.registerInjector(clazz, injector);
-  }
+    public Set<Handler<RoutingContext>> getAnnotationHandler(Class<? extends Annotation> annotation) {
+        return annotationHandlers.get(annotation);
+    }
 
-  <T extends Annotation> void registerInjector(Class<? extends T> clazz, AnnotatedParamInjector<T> injector) {
-    annotInjectors.registerInjector(clazz, injector);
-  }
+    void registerAnnotationHandler(Class<? extends Annotation> annotation, Set<Handler<RoutingContext>> handlers) {
+        annotationHandlers.put(annotation, handlers);
+    }
 
-  void addHandler(Handler<RoutingContext> handler) {
-    globalHandlers.add(handler);
-  }
+    void registerTypeProcessor(Class<?> type, Processor processor) {
+        typeProcessors.put(type, processor);
+    }
 
-  String getWebroot() {
-    return webroot;
-  }
+    <T extends Annotation> void registerAnnotationProcessor(Class<T> annotation, AnnotationProcessorFactory<T> processor) {
+        apRegistry.registerProcessor(annotation, processor);
+    }
 
-  String getAssetsPath() {
-    return assetsPath;
-  }
+    <T extends Annotation> void registerAnnotationProcessor(Class<T> annotation, AnnotationProcessor<T> processor) {
+        apRegistry.registerProcessor(annotation, processor);
+    }
 
-  public AuthProvider getAuthProvider() {
-    return authProvider;
-  }
+    <T> void registerInjector(Class<? extends T> clazz, ParamInjector<T> injector) {
+        typeInjectors.registerInjector(clazz, injector);
+    }
 
-  void setAuthProvider(AuthProvider authProvider) {
-    this.authProvider = authProvider;
-  }
+    <T extends Annotation> void registerInjector(Class<? extends T> clazz, AnnotatedParamInjector<T> injector) {
+        annotInjectors.registerInjector(clazz, injector);
+    }
 
-  String getI18nDir() {
-    return i18nDir;
-  }
+    void addHandler(Handler<RoutingContext> handler) {
+        globalHandlers.add(handler);
+    }
 
-  void createBundle(Locale loc, ResourceBundle bundle) {
-    bundlesByLocale.put(loc, bundle);
-  }
+    String getWebroot() {
+        return webroot;
+    }
 
-  public String getVerticlePackage() {
-    return verticlePackage;
-  }
+    String getAssetsPath() {
+        return assetsPath;
+    }
 
-  public void forEachControllerPackage(Handler<? super String> consumer) {
-    controllerPackages.forEach(consumer::handle);
-  }
+    public AuthProvider getAuthProvider() {
+        return authProvider;
+    }
 
-  public Vertx getVertx() {
-    return vertx;
-  }
+    void setAuthProvider(AuthProvider authProvider) {
+        this.authProvider = authProvider;
+    }
 
-  public SockJSHandlerOptions getSockJSOptions() {
-    return sockJSOptions;
-  }
+    String getI18nDir() {
+        return i18nDir;
+    }
 
-  public Processor getTypeProcessor(Class<?> parameterClass) {
-    return typeProcessors.get(parameterClass);
-  }
+    void createBundle(Locale loc, ResourceBundle bundle) {
+        bundlesByLocale.put(loc, bundle);
+    }
 
-  public Handler<RoutingContext> getParamHandler(Class<?> parameterClass) {
-    return paramHandlers.get(parameterClass);
-  }
+    public String getVerticlePackage() {
+        return verticlePackage;
+    }
 
-  public<T extends Annotation> AnnotationProcessor<T> getAnnotationProcessor(T methodAnnotation) {
-    return apRegistry.getProcessor(methodAnnotation);
-  }
+    public void forEachControllerPackage(Handler<? super String> consumer) {
+        controllerPackages.forEach(consumer::handle);
+    }
 
-  public Handler<RoutingContext> getAopHandler(String name) {
-    return aopHandlerRegistry.get(name);
-  }
+    public Vertx getVertx() {
+        return vertx;
+    }
 
-  public void forEachGlobalHandler(Handler<Handler<RoutingContext>> handler) {
-    globalHandlers.forEach(handler::handle);
-  }
+    public SockJSHandlerOptions getSockJSOptions() {
+        return sockJSOptions;
+    }
 
-  public Map<String, PayloadMarshaller> getMarshallers() {
-    return marshallers;
-  }
+    public Processor getTypeProcessor(Class<?> parameterClass) {
+        return typeProcessors.get(parameterClass);
+    }
 
-  public void setMarshallers(Map<String, PayloadMarshaller> marshallers) {
-    this.marshallers = marshallers;
-  }
+    public Handler<RoutingContext> getParamHandler(Class<?> parameterClass) {
+        return paramHandlers.get(parameterClass);
+    }
 
-  public List<String> getControllerPackages() {
-    return controllerPackages;
-  }
+    public <T extends Annotation> AnnotationProcessor<T> getAnnotationProcessor(T methodAnnotation) {
+        return apRegistry.getProcessor(methodAnnotation);
+    }
+
+    public Handler<RoutingContext> getAopHandler(String name) {
+        return aopHandlerRegistry.get(name);
+    }
+
+    public void forEachGlobalHandler(Handler<Handler<RoutingContext>> handler) {
+        globalHandlers.forEach(handler::handle);
+    }
+
+    public Map<String, PayloadMarshaller> getMarshallers() {
+        return marshallers;
+    }
+
+    public void setMarshallers(Map<String, PayloadMarshaller> marshallers) {
+        this.marshallers = marshallers;
+    }
+
+    public List<String> getControllerPackages() {
+        return controllerPackages;
+    }
 
 }
