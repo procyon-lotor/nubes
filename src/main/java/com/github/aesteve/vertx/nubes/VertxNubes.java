@@ -119,7 +119,7 @@ public class VertxNubes {
                 throw new VertxException(je);
             }
         }
-        failureHandler = new DefaultErrorHandler(config, templManager, marshallers);
+        this.failureHandler = new DefaultErrorHandler(config, templManager, marshallers);
 
         // default processors/handlers
         CookieHandler cookieHandler = CookieHandler.create();
@@ -134,7 +134,7 @@ public class VertxNubes {
     }
 
     public void bootstrap(Handler<AsyncResult<Router>> handler, Router paramRouter) {
-        setUpRouter(paramRouter);
+        this.setUpRouter(paramRouter);
         final ServiceRegistry serviceRegistry = config.getServiceRegistry();
         fixtureLoader = new FixtureLoader(vertx, config, serviceRegistry);
         Map<String, DeploymentOptions> verticles = new AnnotVerticleFactory(config).scan();
@@ -272,12 +272,14 @@ public class VertxNubes {
     // private methods
 
     private void setUpRouter(Router paramRouter) {
-        router = paramRouter;
+        this.router = paramRouter;
+        // 注册失败处理器
         router.route().failureHandler(failureHandler);
         if (locResolver != null) {
+            // 国际化
             locResolver.getAvailableLocales().forEach(this::loadResourceBundle);
             if (locResolver.getDefaultLocale() != null) {
-                loadResourceBundle(locResolver.getDefaultLocale());
+                this.loadResourceBundle(locResolver.getDefaultLocale());
             }
         }
         if (config.getAuthProvider() != null) {

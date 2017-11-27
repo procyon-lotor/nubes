@@ -7,14 +7,14 @@ import io.vertx.ext.web.RoutingContext;
 
 public class LogoutProcessor extends AfterProcessor implements AnnotationProcessor<Logout> {
 
-  @Override
-  public void postHandle(RoutingContext context) {
-    User user = context.user();
-    if (user != null) {
-      user.clearCache();
-      context.clearUser();
+    @Override
+    public void postHandle(RoutingContext context) {
+        User user = context.user();
+        if (user != null) {
+            user.clearCache();
+            context.clearUser();
+        }
+        context.next();
     }
-    context.next();
-  }
 
 }

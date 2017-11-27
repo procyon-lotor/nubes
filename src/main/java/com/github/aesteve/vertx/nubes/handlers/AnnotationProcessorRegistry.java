@@ -6,40 +6,43 @@ import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 注解对应的处理器注册中心
+ */
 public class AnnotationProcessorRegistry {
 
-  private final Map<Class<? extends Annotation>, AnnotationProcessorFactory<? extends Annotation>> factoryMap;
-  private final Map<Class<? extends Annotation>, AnnotationProcessor<? extends Annotation>> processorMap;
+    private final Map<Class<? extends Annotation>, AnnotationProcessorFactory<? extends Annotation>> factoryMap;
+    private final Map<Class<? extends Annotation>, AnnotationProcessor<? extends Annotation>> processorMap;
 
-  public AnnotationProcessorRegistry() {
-    factoryMap = new HashMap<>();
-    processorMap = new HashMap<>();
-  }
-
-  public <T extends Annotation> void registerProcessor(Class<T> annotation, AnnotationProcessorFactory<T> processor) {
-    factoryMap.put(annotation, processor);
-  }
-
-  public <T extends Annotation> void registerProcessor(Class<T> annotation, AnnotationProcessor<T> processor) {
-    processorMap.put(annotation, processor);
-  }
-
-  @SuppressWarnings("unchecked")
-  public <T extends Annotation> AnnotationProcessor<T> getProcessor(T annotation) {
-    AnnotationProcessorFactory<T> factory = (AnnotationProcessorFactory<T>) getFactory(annotation.annotationType());
-    if (factory != null) {
-      return factory.create(annotation);
+    public AnnotationProcessorRegistry() {
+        factoryMap = new HashMap<>();
+        processorMap = new HashMap<>();
     }
-    return getSimpleProcessor(annotation);
-  }
 
-  @SuppressWarnings("unchecked")
-  private <T extends Annotation> AnnotationProcessor<T> getSimpleProcessor(T annotation) {
-    return (AnnotationProcessor<T>) processorMap.get(annotation.annotationType());
-  }
+    public <T extends Annotation> void registerProcessor(Class<T> annotation, AnnotationProcessorFactory<T> processor) {
+        factoryMap.put(annotation, processor);
+    }
 
-  @SuppressWarnings("unchecked")
-  private <T extends Annotation> AnnotationProcessorFactory<T> getFactory(Class<T> annotation) {
-    return (AnnotationProcessorFactory<T>) factoryMap.get(annotation);
-  }
+    public <T extends Annotation> void registerProcessor(Class<T> annotation, AnnotationProcessor<T> processor) {
+        processorMap.put(annotation, processor);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends Annotation> AnnotationProcessor<T> getProcessor(T annotation) {
+        AnnotationProcessorFactory<T> factory = (AnnotationProcessorFactory<T>) getFactory(annotation.annotationType());
+        if (factory != null) {
+            return factory.create(annotation);
+        }
+        return this.getSimpleProcessor(annotation);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Annotation> AnnotationProcessor<T> getSimpleProcessor(T annotation) {
+        return (AnnotationProcessor<T>) processorMap.get(annotation.annotationType());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Annotation> AnnotationProcessorFactory<T> getFactory(Class<T> annotation) {
+        return (AnnotationProcessorFactory<T>) factoryMap.get(annotation);
+    }
 }

@@ -9,56 +9,55 @@ import java.lang.reflect.Method;
 
 public class Filter implements Comparable<Filter> {
 
-  private final int order;
-  private final Method method;
+    private final int order;
+    private final Method method;
 
-  public Filter(Method method, AfterFilter annot) {
-    this.method = method;
-    this.order = annot.value();
-  }
-
-  public Filter(Method method, BeforeFilter annot) {
-    this.method = method;
-    this.order = annot.value();
-  }
-
-  @Override
-  public int compareTo(Filter other) {
-    if (other == null) {
-      return -1;
+    public Filter(Method method, AfterFilter annot) {
+        this.method = method;
+        this.order = annot.value();
     }
-    return Integer.compare(order, other.order);
-  }
 
-  @Override
-  public boolean equals(Object obj) {
-    if (obj == null) {
-      return false;
+    public Filter(Method method, BeforeFilter annot) {
+        this.method = method;
+        this.order = annot.value();
     }
-    if (obj == this) {
-      return true;
+
+    @Override
+    public int compareTo(Filter other) {
+        if (other == null) {
+            return -1;
+        }
+        return Integer.compare(order, other.order);
     }
-    if (obj.getClass() != getClass()) {
-      return false;
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (obj == this) {
+            return true;
+        }
+        if (obj.getClass() != getClass()) {
+            return false;
+        }
+        Filter filter = (Filter) obj;
+        return new EqualsBuilder()
+                .append(order, filter.order)
+                .append(method, filter.method)
+                .isEquals();
     }
-    Filter filter = (Filter) obj;
-    return new EqualsBuilder()
-        .append(order, filter.order)
-        .append(method, filter.method)
-        .isEquals();
-  }
 
-  @Override
-  public int hashCode() {
-    return new HashCodeBuilder()
-        .append(method)
-        .append(order)
-        .toHashCode();
-  }
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder()
+                .append(method)
+                .append(order)
+                .toHashCode();
+    }
 
-
-  public Method method() {
-    return method;
-  }
+    public Method method() {
+        return method;
+    }
 
 }

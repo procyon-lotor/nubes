@@ -11,9 +11,9 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface Auth {
 
-  AuthMethod method();
+    AuthMethod method();
 
-  String authority();
+    String authority();
 
-  String redirectURL() default "";
+    String redirectURL() default "";
 }

@@ -8,26 +8,26 @@ import io.vertx.ext.web.RoutingContext;
 
 public class ViewProcessor extends NoopAfterAllProcessor implements AnnotationProcessor<View> {
 
-  private final TemplateEngineManager templateHandler;
-  private final View annotation;
+    private final TemplateEngineManager templateHandler;
+    private final View annotation;
 
-  public ViewProcessor(TemplateEngineManager templateHandler, View annotation) {
-    this.templateHandler = templateHandler;
-    this.annotation = annotation;
-  }
-
-  @Override
-  public void preHandle(RoutingContext context) {
-    String viewName = annotation.value();
-    if (viewName != null) {
-      ViewResolver.resolve(context, annotation.value());
+    public ViewProcessor(TemplateEngineManager templateHandler, View annotation) {
+        this.templateHandler = templateHandler;
+        this.annotation = annotation;
     }
-    context.next();
-  }
 
-  @Override
-  public void postHandle(RoutingContext context) {
-    templateHandler.handle(context);
-  }
+    @Override
+    public void preHandle(RoutingContext context) {
+        String viewName = annotation.value();
+        if (viewName != null) {
+            ViewResolver.resolve(context, annotation.value());
+        }
+        context.next();
+    }
+
+    @Override
+    public void postHandle(RoutingContext context) {
+        templateHandler.handle(context);
+    }
 
 }

@@ -6,5 +6,5 @@ import java.lang.annotation.Annotation;
 
 @FunctionalInterface
 public interface AnnotationProcessorFactory<T extends Annotation> {
-  AnnotationProcessor<T> create(T annotation);
+    AnnotationProcessor<T> create(T annotation);
 }
